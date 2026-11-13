@@ -18,6 +18,14 @@
       </article>
     </div>
 
+    <p class="scan-note">
+      扫描范围同步自成本扫描的容量摘要：
+      <template v-if="scanScopes.length">
+        <span v-for="scope in scanScopes" :key="scope" class="scan-chip">{{ scope }}</span>
+      </template>
+      <span v-else class="empty-inline">暂无容量摘要，成本扫描完成后自动同步</span>
+    </p>
+
     <form class="filter-bar" @submit.prevent="reload">
       <label v-for="field in filterFields" :key="field" class="filter-item">
         <span>{{ field }}</span>
@@ -70,7 +78,7 @@ import { request } from '@/api/client'
 type Row = Record<string, string | number | null>
 
 const ENDPOINT = '/api/benchmark'
-const columns = ["报告编号", "查询语句", "执行耗时", "扫描行数", "索引命中", "资源消耗", "优化建议", "分析时间"]
+const columns = ["报告编号", "查询语句", "执行耗时", "扫描行数", "索引命中", "资源消耗", "优化建议", "分析时间", "扫描范围", "扫描状态"]
 const actions = ["开始分析", "应用优化", "归档报告"]
 const statuses = ["草稿", "分析中", "已生成", "已优化"]
 const stats = [{"label": "性能报告总数", "value": 0}, {"label": "已生成报告", "value": 0}, {"label": "已优化报告", "value": 0}]
@@ -80,6 +88,21 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const scanScopes = ref<string[]>([])
+
+async function loadScanScopes() {
+  try {
+    const response = await request('/api/cost/capacity-summaries?size=50')
+    if (!response.ok) {
+      scanScopes.value = []
+      return
+    }
+    const payload = await response.json()
+    scanScopes.value = (payload.items ?? []).map((item: Record<string, unknown>) => String(item['扫描范围'] ?? '')).filter(Boolean)
+  } catch {
+    scanScopes.value = []
+  }
+}
 
 function resetFilters() {
   filters.value = {}
@@ -126,5 +149,14 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+onMounted(() => {
+  void reload()
+  void loadScanScopes()
+})
 </script>
+
+<style scoped>
+.scan-note { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+.scan-chip { display: inline-block; margin-right: 6px; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: #1f2937; }
+.empty-inline { color: var(--muted); }
+</style>

@@ -4,9 +4,10 @@
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
-from app.seed import SEED_ROWS
+from app.seed import SEED_CAPACITY_SUMMARIES, SEED_ROWS, SEED_SCAN_BATCHES
 
 
 class Store:
@@ -14,12 +15,32 @@ class Store:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        # 成本扫描的批次与容量摘要单独存放：它们不是 16 个业务模块之一，
+        # 不参与概览卡片的模块计数，但和业务表一样随进程常驻，刷新页面不丢进度。
+        self._scan_batches: list[dict[str, Any]] = [
+            deepcopy(row) for row in SEED_SCAN_BATCHES
+        ]
+        self._capacity_summaries: list[dict[str, Any]] = [
+            deepcopy(row) for row in SEED_CAPACITY_SUMMARIES
+        ]
 
     def module_names(self) -> list[str]:
         return sorted(self._tables)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])
+
+    def scan_batches(self) -> list[dict[str, Any]]:
+        return self._scan_batches
+
+    def capacity_summaries(self) -> list[dict[str, Any]]:
+        return self._capacity_summaries
+
+    def capacity_summary(self, summary_id: str) -> dict[str, Any] | None:
+        for row in self._capacity_summaries:
+            if row.get("摘要编号") == summary_id:
+                return row
+        return None
 
     def find(self, module: str, entry_id: int) -> dict[str, Any] | None:
         for row in self.rows(module):

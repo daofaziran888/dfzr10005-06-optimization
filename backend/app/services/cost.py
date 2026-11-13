@@ -59,3 +59,19 @@ class CostService:
         entry["pending"] = target != STATUS_ORDER[-1]
         entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"成本分析报告已{action}"
+
+    def bind_capacity_summary(self, entry_id: int, summary_id: str) -> tuple[dict[str, Any] | None, str]:
+        """把已发布的容量摘要挂到报告上，报告侧只读引用，不复制扫描口径。"""
+        entry = store.find(MODULE, entry_id)
+        if entry is None:
+            return None, f"成本分析报告 {entry_id} 不存在或已归档"
+        summary = store.capacity_summary(summary_id)
+        if summary is None:
+            return None, f"容量摘要 {summary_id} 不存在，请先完成一次扫描"
+        entry["容量摘要编号"] = summary_id
+        entry["存储总量"] = summary["存储总量"]
+        entry["冷数据占比"] = summary["冷数据占比"]
+        entry["预计节省"] = summary["预计节省"]
+        entry["生成时间"] = summary["生成时间"]
+        entry["扫描状态"] = summary.get("覆盖状态", "完整覆盖")
+        return entry, f"成本分析报告已引用容量摘要 {summary_id}"
